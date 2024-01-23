@@ -1,62 +1,22 @@
-buildscript {
-    repositories {
-        maven {
-            url "https://plugins.gradle.org/m2/"
-        }
-    }
-    dependencies {
-        classpath 'nl.javadude.gradle.plugins:license-gradle-plugin:0.11.0'
-        classpath "com.gradle.publish:plugin-publish-plugin:0.9.1"
-    }
-}
-
 apply plugin: 'groovy'
-apply plugin: 'license'
-apply plugin: 'maven'
-apply plugin: 'eclipse'
-apply plugin: "com.gradle.plugin-publish"
-
-defaultTasks 'licenseFormat', 'build'
 
 group = 'org.spongepowered'
 version = buildVersion + (buildType == 'RELEASE' ? '' : "-$buildType")
 archivesBaseName = 'mixingradle'
-targetCompatibility = '1.6'
-sourceCompatibility = '1.6'
+targetCompatibility = sourceCompatibility = '1.6'
 
 repositories {
     mavenCentral()
-}
-
-configurations {
-    deployerJars
 }
 
 dependencies {
     compile gradleApi()
     compile 'com.google.guava:guava:17.0'
     compile 'org.ow2.asm:asm-debug-all:5.0.3'
-    deployerJars 'org.apache.maven.wagon:wagon-ftp:2.7'
 }
 
 processResources {
    from 'LICENSE.txt'
-}
-
-license {
-    ext {
-        name = project.name
-        organization = project.organization
-        url = project.url
-    }
-    include '**/*.groovy'
-    header file("HEADER.txt")
-    sourceSets = project.sourceSets
-    ignoreFailures false
-    strictCheck true
-    mapping {
-        java = 'SLASHSTAR_STYLE'
-    }
 }
 
 jar.manifest.mainAttributes (
@@ -65,73 +25,3 @@ jar.manifest.mainAttributes (
     "Implementation-Title": name,
     "Implementation-Version": version
 )
-
-task groovydocJar(type: Jar, dependsOn: groovydoc) {
-    from groovydoc.destinationDir
-    classifier = 'groovydoc'
-}
-
-artifacts {
-    archives jar
-    archives groovydocJar
-}
-
-pluginBundle {
-    website = 'http://www.gradle.org/'
-    vcsUrl = 'https://github.com/SpongePowered/MixinGradle'
-    description = 'Gradle plugin for SpongePowered Mixin'
-    tags = ['spongepowered', 'sponge', 'mixin']
-    plugins {
-        patcher {
-            id = 'org.spongepowered.mixin'
-            displayName = 'SpongePowered Mixin Gradle Plugin'
-        }
-    }
-}
-
-uploadArchives {
-    repositories {
-
-        mavenDeployer {
-            configuration = configurations.deployerJars
-
-            if (project.hasProperty("chRepo"))
-            {
-                repository(url: project.chRepo) {
-                    authentication(userName: project.chUsername, password: project.chPassword)
-                }
-            }
-
-            pom {
-                groupId = project.group
-                version = project.version
-                artifactId = project.archivesBaseName
-                project {
-                    name project.archivesBaseName
-                    packaging 'jar'
-                    description 'MixinGradle'
-                    url 'http://www.spongepowered.org/'
-
-                    scm {
-                        url 'https://github.com/SpongePowered/MixinGradle'
-                        connection 'scm:git:git://github.com/SpongePowered/MixinGradle.git'
-                        developerConnection 'scm:git:git@github.com:SpongePowered/MixinGradle.git'
-                    }
-
-                    issueManagement {
-                        system 'GitHub Issues'
-                        url 'https://github.com/SpongePowered/MixinGradle/issues'
-                    }
-
-                    licenses {
-                        license {
-                            name 'MIT license'
-                            url 'http://opensource.org/licenses/MIT'
-                            distribution 'repo'
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
