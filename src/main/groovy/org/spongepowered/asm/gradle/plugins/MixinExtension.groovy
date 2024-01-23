@@ -52,25 +52,7 @@ import java.io.File
  * of the mixin annotation processor and extensions to sourcesets 
  */
 public class MixinExtension {
-    
-    class ReobfTask {
-        final Project project
-        final Object taskWrapper
-        
-        ReobfTask(Project project, Object taskWrapper) {
-            this.project = project
-            this.taskWrapper = taskWrapper
-        }
-        
-        Jar getJar() {
-            this.project.tasks[this.taskWrapper.name]
-        }
-        
-        String getName() {
-            this.taskWrapper.name
-        }
-    }
-    
+
     /**
      * Cached reference to containing project 
      */
@@ -103,11 +85,6 @@ public class MixinExtension {
      * into the 
      */
     private Map<String, String> tokens = [:]
-    
-    /**
-     * Reobf tasks we will target
-     */
-    Set<ReobfTask> reobfTasks = []
     
     /**
      * If a refMap overlap is detected a warning will be output, however there
@@ -203,9 +180,9 @@ public class MixinExtension {
         
         this.project.afterEvaluate {
             // Gather reobf jars for processing
-            project.reobf.each { reobfTaskWrapper ->
+            /*project.reobf.each { reobfTaskWrapper ->
                 this.reobfTasks += new ReobfTask(project, reobfTaskWrapper)
-            }
+            }*/
 
             // Search for sourceSets with a refmap property and configure them
             project.sourceSets.each { set ->
@@ -215,14 +192,14 @@ public class MixinExtension {
             }
 
             // Search for upstream projects and add our jars to their target set
-            project.configurations.compile.allDependencies.withType(ProjectDependency) { upstream ->
+            /*project.configurations.compile.allDependencies.withType(ProjectDependency) { upstream ->
                 def mixinExt = upstream.dependencyProject.extensions.findByName("mixin")
                 if (mixinExt) {
                     project.reobf.each { reobfTaskWrapper ->
                         mixinExt.reobfTasks += new ReobfTask(project, reobfTaskWrapper)
                     }
                 }
-            }
+            }*/
 
             
             this.applyDefault()
@@ -577,58 +554,40 @@ public class MixinExtension {
 
         // Closure to allocate generated AP resources once compile task
         // is completed
-        this.reobfTasks.each { reobfTask ->
-            reobfTask.taskWrapper.task.doFirst {
-                try {
-                    def mapped = false
-                    [reobfTask.taskWrapper.mappingType, this.defaultObfuscationEnv.toString()].each { arg ->
-                        ReobfMappingType.each { type ->
-                            if (type.matches(arg) && !mapped && srgFiles[type].exists()) {
-                                this.addMappings(reobfTask, type, srgFiles[type])
-                                mapped = true
-                            }
-                        }
-                    }
-    
-                    // No mapping set was matched, so add the searge mappings
-                    if (!mapped && srgFiles[SEARGE].exists()) {
-                        this.addMappings(reobfTask, SEARGE, srgFiles[SEARGE])
-                    }
-                } catch (MissingPropertyException ex) {
-                    if (ex.property == "mappingType") {
-                        throw new InvalidUserDataException("Could not determine mapping type for obf task, ensure ForgeGradle up to date.")
-                    } else {
-                        throw ex
-                    }
-                }
+        def reobfTask = project.tasks.getByName('reobf')
+
+        reobfTask.doFirst {
+            if (srgFiles[SEARGE].exists()) {
+                this.addMappings(reobfTask, SEARGE, srgFiles[SEARGE])
             }
         }
 
 
-        // Add the refmap to all reobf'd jars
-        this.reobfTasks.each { reobfTask ->
-            reobfTask.jar.getRefMaps().files.add(artefactSpecificRefMap)
-            reobfTask.jar.from(artefactSpecificRefMap)
-        }
+        // There is no info about other jar tasks in 'reobf' task
+        def jarTask = project.tasks.getByName('jar')
 
+        if (jarTask) {
+            jarTask.getRefMaps().files.add(artefactSpecificRefMap)
+            jarTask.from(artefactSpecificRefMap)
+        }
     }
     
     /**
      * Callback from <tt>compileTask.doLast</tt> closure, attempts to contribute
      * mappings of the specified type to the supplied task
      * 
-     * @param reobfTask a <tt>ReobfTask</tt> instance
+     * @param reobfTask a <tt>Task</tt> instance
      * @param type Mapping type to add
      * @param srgFile SRG mapping file to add to the task
      */
-    @PackageScope void addMappings(ReobfTask reobfTask, ReobfMappingType type, File srgFile) {
+    @PackageScope void addMappings(Task reobfTask, ReobfMappingType type, File srgFile) {
         if (!srgFile.exists()) {
             project.logger.warn "Unable to contribute {} mappings to {}, the specified file ({}) was not found", type, reobfTask.name, srgFile
             return    
         }
         
         project.logger.info "Contributing {} ({}) mappings to {} in {}", type, srgFile, reobfTask.name, reobfTask.project
-        reobfTask.taskWrapper.extraFiles(srgFile)
+        reobfTask.addExtraSrgFile(srgFile)
     }
     
     /**

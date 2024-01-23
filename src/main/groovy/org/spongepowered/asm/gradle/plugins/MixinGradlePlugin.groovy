@@ -63,8 +63,8 @@ public class MixinGradlePlugin implements Plugin<Project> {
             throw new InvalidUserDataException("Could not find task 'genSrgs' on $project, ensure ForgeGradle is applied.")
         }
 
-        if (!project.extensions.findByName('reobf')) {
-            throw new InvalidUserDataException("Could not find property 'reobf' on $project, ensure ForgeGradle is applied.")
+        if (!project.tasks.findByName('reobf')) {
+            throw new InvalidUserDataException("Could not find task 'reobf' on $project, ensure ForgeGradle is applied.")
         }
     }
     
