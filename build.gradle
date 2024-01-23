@@ -1,4 +1,5 @@
 apply plugin: 'groovy'
+apply plugin: 'maven-publish'
 
 group = 'org.spongepowered'
 version = buildVersion + (buildType == 'RELEASE' ? '' : "-$buildType")
@@ -25,3 +26,15 @@ jar.manifest.mainAttributes (
     "Implementation-Title": name,
     "Implementation-Version": version
 )
+
+publishing {
+    publications {
+        myPub(MavenPublication) {
+            from components.java
+        }
+    }
+
+    repositories {
+        mavenLocal()
+    }
+}
